@@ -24,18 +24,17 @@ class Planet:
 
 		fleets = self.state.getFleetsTo(self.id)
 		for r in range(0, eta):
-			# Add production
-			for i in range(0, 3):
-				ships_prediction[i] = ships_prediction[i] + self.production[i]
+			# Add production if not neutral
+			if self.owner != 0:
+				ships_prediction = map(lambda s,p: s+p, ships_prediction, self.production)
 
 			# Add incoming fleets
 			for fleet in fleets:
 				# Is this fleet landing in this round?
 				if fleet.eta == r + self.state.round:
 					# Reinforcments
-					if fleet.owner == self.id:
-						for i in range(0, 3):
-							ships_prediction[i] = ships_prediction[i] + fleet.ships[i]
+					if fleet.owner == owner_prediction:
+						ships_prediction = map(lambda s,f: s+f, ships_prediction, fleet.ships)
 					# Attacker
 					else:
 						battle_result = battle(fleet.ships, ships_prediction)
@@ -63,14 +62,14 @@ class Planet:
 		other_ships = status[1]
 		battle_result = battle(self.ships, other_ships)
 
-		#if sum(battle_result[0][::]) == 0:
-		#	modifier -= sum(battle_result[1][::]) / self.state.round
-			#return None
+		if sum(battle_result[0][::]) == 0:
+			modifier -= sum(battle_result[1][::]) / self.state.round
+			return None
 			#pass
 
 		#modifier = 0
-		#modifier = float(sum(battle_result[0][::])) / (float(sum(self.ships[::]))+0.0001)
-		#modifier += other.planetValue()
+		modifier += float(sum(battle_result[0][::])) / (float(sum(self.ships[::]))+0.0001)
+		modifier += other.planetValue()
 		modifier -= eta / 10.0
 		#modifier += float(sum(battle_result[0][::])) / (float(sum(self.ships[::]))+0.0001)
 		#modifier *= float(sum(self.ships[::])) / 10.0
@@ -81,6 +80,9 @@ class Planet:
 		#own fleets count against mod
 		#for fleet in self.state.getFleetsByTo(other.id, self.state.player_me.id):
 		#	modifier -= sum(fleet.ships[::]) / 10.0
+
+		for fleet in self.state.getFleetsByTo(self.id, self.state.player_enemy.id):
+			modifier -= sum(fleet.ships[::]) / 10.0
 
 		return [modifier, minimum]
 

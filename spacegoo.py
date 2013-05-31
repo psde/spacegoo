@@ -15,8 +15,8 @@ class Spacegoo:
 
 		while True:
 			self.start()
-			time.sleep(0.2)
-			return
+			time.sleep(0.3)
+			#return
 
 	def start(self):
 		self.state = State()
@@ -94,7 +94,7 @@ class Spacegoo:
 		print "E: PC %s\tPS %s\tFS %s" % (len(self.state.getPlanetsByOwner(enemy_id)), enemy_planet_ships, enemy_fleet_ships)
 		print "Decision '%s' with score %s ('%s')" % (decision.description, decision.score, decision.command)
 		print "v=============v"
-		time.sleep(0.1)
+		#time.sleep(0.1)
 
 		return False
 
