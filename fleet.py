@@ -4,9 +4,9 @@ from backend import *
 class Fleet:
 	def __init__(self, state, data):
 		self.state = state
-		self.id = data['id']
-		self.owner = data['owner_id']
-		self.origin = data['origin']
-		self.target = data['target']
-		self.eta = data['eta']
+		self.id = int(data['id'])
+		self.owner = int(data['owner_id'])
+		self.origin = int(data['origin'])
+		self.target = int(data['target'])
+		self.eta = int(data['eta'])
 		self.ships = data['ships']

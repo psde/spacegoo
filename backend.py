@@ -30,7 +30,7 @@ def battle(s1,s2):
 	#print ships1,ships2
 	return ships1, ships2
 
-def getMinimumAttackStrength(s1, s2):
+def getMinimumAttackStrength(s1, s2, mod):
 	r = battle(s1, s2)
-	opti = [s1[0] - int(r[0][0]/1.9), s1[1] - int(r[0][1]/1.9), s1[2] - int(r[0][2]/1.9)]
+	opti = [s1[0] - int(r[0][0]/mod), s1[1] - int(r[0][1]/mod), s1[2] - int(r[0][2]/mod)]
 	return opti

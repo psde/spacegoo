@@ -15,7 +15,8 @@ class Spacegoo:
 
 		while True:
 			self.start()
-			#return
+			time.sleep(0.2)
+			return
 
 	def start(self):
 		self.state = State()
@@ -23,28 +24,30 @@ class Spacegoo:
 		self.socket.connect((self.ip, self.port))
 		self.io = self.socket.makefile("rw")
 
-		self.write("login %s %s" % (self.credentials.username, self.credentials.password), "login")
+		self.write("login %s %s" % (self.credentials.username, self.credentials.password), False)
+		print "Logging in"
 
 		self.mainloop()
 
 	# IO
-	def write(self, data, foo=""):
+	def write(self, data, printout = True):
 		line = '%s\n' % (data,)
-		print "<= %s" % (line),
+		if printout:
+			print "<= %s" % (line),
 		self.io.write(line)
 		self.io.flush()
 
-	def read(self):
+	def read(self, printout = True):
 		data = self.io.readline().strip()
 		self.io.flush()
-		if data and data[0] != "{":
+		if data and data[0] != "{" and printout:
 			print "=> %s" % (data)
 		return data
 
 	def processState(self, state):
-		print "Processing state ..."
+		#print "Processing state ..."
 
-		player_id = state["player_id"]
+		player_id = int(state["player_id"])
 		enemy_id = 2
 		if player_id == 2:
 			enemy_id = 1
@@ -60,57 +63,44 @@ class Spacegoo:
 
 		self.state.update(state)
 
-		
+		my_planet_ships = [0, 0, 0]
+		for planet in self.state.getPlanetsByOwner(player_id):
+			for i in range(0,3):
+				my_planet_ships[i] += planet.ships[i]
 
-		self.write("nop")
-		return False
+		my_fleet_ships = [0, 0, 0]
+		for fleet in self.state.getFleetsBy(player_id):
+			for i in range(0,3):
+				my_fleet_ships[i] += fleet.ships[i]
 
-		#enemy_planets = [Planet(planet) for planet in state['planets'] if planet['owner_id'] != player_id and planet['owner_id'] != 0]
-		#own_planets = [Planet(planet) for planet in state['planets'] if planet['owner_id'] == player_id]
-		#neutral_planets = [Planet(planet) for planet in state['planets'] if planet['owner_id'] == 0]
+		enemy_planet_ships = [0, 0, 0]
+		for planet in self.state.getPlanetsByOwner(enemy_id):
+			for i in range(0,3):
+				enemy_planet_ships[i] += planet.ships[i]
 
-		#print enemy_planets
-		#print own_planets
-		#print neutral_planets
-		#for(p in sorted(neutral_planets, key=lambda x: x., reverse=True))
+		enemy_fleet_ships = [0, 0, 0]
+		for fleet in self.state.getFleetsBy(enemy_id):
+			for i in range(0,3):
+				enemy_fleet_ships[i] += fleet.ships[i]
 
-		if len(neutral_planets) > 0:
-			choice = [None, None]
-			for o in own_planets:
-				for n in neutral_planets:
-					inv = n.score(o)
+		decision = self.state.getDecision()
 
-					if choice[0] == None or choice[1].score(choice[0]) < inv:
-						if inv > 20.0:
-							choice = [o, n]
+		self.write(decision.command, False)
 
-			if choice[0] != None:
-				print "Sending to neut"
-				self.write("send %s %s %s %s %s" % (choice[0].id, choice[1].id, choice[0].ships[0], choice[0].ships[1], choice[0].ships[2]))
-				return False
+		print "^=============^"
+		print "Round %s, Enemy: %s" %(self.state.round, self.state.getPlayerById(enemy_id).name)
+		print "---------------"
+		print "M: PC %s\tPS %s\tFS %s" % (len(self.state.getPlanetsByOwner(player_id)), my_planet_ships, my_fleet_ships)
+		print "E: PC %s\tPS %s\tFS %s" % (len(self.state.getPlanetsByOwner(enemy_id)), enemy_planet_ships, enemy_fleet_ships)
+		print "Decision '%s' with score %s ('%s')" % (decision.description, decision.score, decision.command)
+		print "v=============v"
+		time.sleep(0.1)
 
-
-		if len(enemy_planets) > 0:
-			choice = [None, None]
-			for o in own_planets:
-				for n in enemy_planets:
-					inv = n.score(o)
-
-					if choice[0] == None or choice[1].score(choice[0]) < inv:
-						if inv > 30.0:
-							choice = [o, n]
-
-			if choice[0] != None:
-				print "sending to enemy"
-				self.write("send %s %s %s %s %s" % (choice[0].id, choice[1].id, choice[0].ships[0], choice[0].ships[1], choice[0].ships[2]))
-				return False
-
-		self.write("nop")
 		return False
 
 	def mainloop(self):
 		while True:
-			line = self.read()
+			line = self.read(False)
 			if line and line[0] == "{":
 				data = json.loads(line)
 				gameover = self.processState(data)
