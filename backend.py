@@ -20,8 +20,8 @@ def battle(s1,s2):
 	ships1 = s1[::]
 	ships2 = s2[::]
 	while sum(ships1) > 0 and sum(ships2) >0:
-		new1 = battle_round(ships2,ships1)
-		ships2 = battle_round(ships1,ships2)
+		new1 = battle_round(ships2[::],ships1[::])
+		ships2 = battle_round(ships1[::],ships2[::])
 		ships1 = new1
 		#print ships1,ships2
 
@@ -33,4 +33,12 @@ def battle(s1,s2):
 def getMinimumAttackStrength(s1, s2, mod):
 	r = battle(s1, s2)
 	opti = [s1[0] - int(r[0][0]/mod), s1[1] - int(r[0][1]/mod), s1[2] - int(r[0][2]/mod)]
+	return opti
+	opti = s1[::]
+	while True:
+		r = battle(s1, s2)
+		if sum(r[0][::]) <= 3:
+			break
+		opti = s1[::]
+		s1 = map(lambda x: int(x * 0.75), s1)
 	return opti

@@ -27,7 +27,7 @@ class Spacegoo:
 		self.write("login %s %s" % (self.credentials.username, self.credentials.password), False)
 		print "Logging in"
 
-		self.mainloop()
+		return self.mainloop()
 
 	# IO
 	def write(self, data, printout = True):
@@ -55,8 +55,10 @@ class Spacegoo:
 		if state["game_over"] == True:
 			if not state["winner"]:
 				print "Draw!"
+				time.sleep(0.5)
 			elif state["winner"] != player_id:
 				print "Loser."
+				time.sleep(0.75)
 			else:
 				print "Winner."
 			return True
@@ -83,7 +85,9 @@ class Spacegoo:
 			for i in range(0,3):
 				enemy_fleet_ships[i] += fleet.ships[i]
 
-		decision = self.state.getDecision()
+		decision_tuple = self.state.getDecision()
+		decision = decision_tuple[0]
+		len_decisions = decision_tuple[1]
 
 		self.write(decision.command, False)
 
@@ -92,7 +96,7 @@ class Spacegoo:
 		print "---------------"
 		print "M: PC %s\tPS %s\tFS %s" % (len(self.state.getPlanetsByOwner(player_id)), my_planet_ships, my_fleet_ships)
 		print "E: PC %s\tPS %s\tFS %s" % (len(self.state.getPlanetsByOwner(enemy_id)), enemy_planet_ships, enemy_fleet_ships)
-		print "Decision '%s' with score %s ('%s')" % (decision.description, decision.score, decision.command)
+		print "Decision '%s' with score %s ('%s') from %s possible" % (decision.description, decision.score, decision.command, len_decisions)
 		print "v=============v"
 		#time.sleep(0.1)
 
@@ -115,5 +119,5 @@ class Spacegoo:
 				return
 
 
-#s = Spacegoo("spacegoo.gpn.entropia.de", 6000)
-s = Spacegoo("94.45.226.23", 6000)
+s = Spacegoo("spacegoo.gpn.entropia.de", 6000)
+#s = Spacegoo("94.45.226.23", 6000)
