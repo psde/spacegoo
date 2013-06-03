@@ -85,18 +85,24 @@ class Spacegoo:
 			for i in range(0,3):
 				enemy_fleet_ships[i] += fleet.ships[i]
 
-		decision_tuple = self.state.getDecision()
-		decision = decision_tuple[0]
-		len_decisions = decision_tuple[1]
+		#decision_tuple = self.state.getDecision()
+		#decision = decision_tuple[0]
+		#len_decisions = decision_tuple[1]
 
-		self.write(decision.command, False)
+		#self.write(decision.command, False)
+
+		goal = self.state.getGoal()
+		command = goal.pop()
+		print command
+		self.write(command.getCommand())
 
 		print "^=============^"
 		print "Round %s, Enemy: %s" %(self.state.round, self.state.getPlayerById(enemy_id).name)
 		print "---------------"
 		print "M: PC %s\tPS %s\tFS %s" % (len(self.state.getPlanetsByOwner(player_id)), my_planet_ships, my_fleet_ships)
 		print "E: PC %s\tPS %s\tFS %s" % (len(self.state.getPlanetsByOwner(enemy_id)), enemy_planet_ships, enemy_fleet_ships)
-		print "Decision '%s' with score %s ('%s') from %s possible" % (decision.description, decision.score, decision.command, len_decisions)
+		print "Goal '%s' move '%s' (left: %s)" % (goal.desc, command.getCommand(), goal.len())
+		#print "Decision '%s' with score %s ('%s') from %s possible" % (decision.description, decision.score, decision.command, len_decisions)
 		print "v=============v"
 		#time.sleep(0.1)
 

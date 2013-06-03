@@ -12,21 +12,62 @@ class Decision:
 		self.command = command
 
 	def __repr__(self):
-		return "<%s, %s, '%s'>" % (self.score, self.command, self.description)
+		return "<%s, %s, '%s'>" % (self.score, self.command, self.description) 
+
+class NopCommand:
+	def __init__(self):
+		pass
+
+	def getCommand(self):
+		return "nop"
+
+	def __repr__(self):
+		return self.getCommand()
+
+class MoveCommand:
+	def __init__(self, origin, target, ships):
+		self.origin = origin
+		self.target = target
+		self.ships = ships
+
+	def getCommand(self):
+		return "send %s %s %s %s %s" % (self.origin.id, self.target.id, self.ships[0], self.ships[1], self.ships[2])
+
+	def __repr__(self):
+		return self.getCommand()
+
+class Goal:
+	def __init__(self, desc):
+		self.queue = []
+		self.desc = desc
+
+	def add(self, command):
+		self.queue.append(command)
+
+	def len(self):
+		return len(self.queue)
+
+	def pop(self):
+		if self.len() == 0:
+			return NopCommand()
+		c = self.queue[0]
+		del self.queue[0]
+		return c
 
 class State:
 	def __init__(self):
-		self._PRIORITY_RALLY = -99999999.0
-		self._PRIORITY_GRIEF = -1.0
-		self._PRIORITY_FLEE = 1.5
+		self._PRIORITY_RALLY = -20.0
+		self._PRIORITY_GRIEF = 2.0
+		self._PRIORITY_FLEE = -99999991.5
 		self._PRIORITY_COLONIZE = 4.0
 		self._PRIORITY_ATTACK = 5.5
-		self._PRIORITY_DEFEND = -999.0
+		self._PRIORITY_DEFEND = 10.0
 
 		self.round = 0
 		self.stack = []
 		self.planets = []
 		self.fleets = []
+		self.goal = None
 
 	def update(self, data):
 		#self.stack.append([self.planets, self.fleets])
@@ -57,9 +98,9 @@ class State:
 		#	self.PRIORITY_COLONIZE /= 3
 
 
-		#if self.player_enemy.name == "chrtio":
-		#	self.PRIORITY_ATTACK /= 8
-		#	self.PRIORITY_COLONIZE /= 3.5
+		if self.player_enemy.name == "lorenz":
+			self.PRIORITY_ATTACK = self._PRIORITY_GRIEF + 0.3
+			self.PRIORITY_COLONIZE = self._PRIORITY_GRIEF + 0.2
 
 		#if self.player_enemy.name == "nomeataintercept2":
 		#	self.PRIORITY_ATTACK *= 3
@@ -87,12 +128,110 @@ class State:
 	def getFleetsByTo(self, id, target):
 		return [fleet for fleet in self.fleets if fleet.owner == id and fleet.target == target]
 
+	def getFullForceGoal(self, my_planets, enemy_planets):
+		for planet in enemy_planets:
+			for my_planet in my_planets:
+				status = planet.getStatusIn(planet.distTo(my_planet))
+				if winsDeltaAgainst(my_planet.ships, status['ships']) and status['owner'] != self.player_me.id:
+					g = Goal('full force')
+					g.add(MoveCommand(my_planet, planet, my_planet.ships))
+					return g
+		return None
+
+
+	def getGoal(self):
+		my_planets = self.getPlanetsByOwner(self.player_me.id)
+		enemy_planets = self.getPlanetsByOwner(self.player_enemy.id)
+		neutral_planets = self.getPlanetsByOwner(0)
+
+		if self.goal is None or self.goal.len() == 0:
+
+			if self.round > 1500:
+				g = self.getFullForceGoal(my_planets, neutral_planets)
+				if g is not None:
+					self.goal = g
+					return g
+
+			# Check for cheap neutral
+			cheap_neutrals = []
+			for neutral in neutral_planets:
+				if neutral.getNearestPlanetDist(my_planets) < neutral.getNearestPlanetDist(enemy_planets):
+					cheap_neutrals.append(neutral)
+
+			cheap_neutrals.sort(key=lambda x: x.getNearestPlanetDist(my_planets), reverse=False)
+
+			if self.round < 125 and len(cheap_neutrals) > 0:
+				for neutral in cheap_neutrals:
+					my = my_planets[::]
+					while len(my) > 0: 
+						nearest = neutral.getNearestPlanet(my)
+						dist = nearest.distTo(neutral)
+						if nearest.istSafeToLeave(nearest.ships) and winsAgainst(nearest.ships, neutral.getStatusIn(dist)['ships']) and nearest.istSafeToLeave(nearest.ships):
+							self.goal = Goal('neutrals')
+							self.goal.add(MoveCommand(nearest, neutral, nearest.ships))
+							return self.goal
+
+						my = [x for x in my if x.id is not nearest.id]
+
+			#cheap_neutrals.sort(key=lambda x: x.getNearestPlanet(my_planets).distTo(x), reverse=True)
+
+			# Grief cheap neutrals
+			if len(cheap_neutrals) > 0:
+				neutral = cheap_neutrals[0]
+				g = Goal('grief neutral')
+				for p in my_planets:
+					if p.istSafeToLeave([1, 1, 1]) and sum(p.ships) >= 1:
+						g.add(MoveCommand(p, neutral, [1, 1, 1]))
+				if g.len() > 0:
+					self.goal = g
+					return g
+
+			if self.round > 275:
+				g = self.getFullForceGoal(my_planets, enemy_planets)
+				if g is not None:
+					self.goal = g
+					return g
+
+			for enemy_planet in enemy_planets:
+				for planet in my_planets:
+					ships = map(lambda s: int(s/1.2), planet.ships)
+					enemy_ships = enemy_planet.getStatusIn(planet.distTo(planet))['ships']
+					if planet.istSafeToLeave(ships) and winsDeltaAgainst(ships, enemy_ships):
+						self.goal = Goal('attack')
+						self.goal.add(MoveCommand(planet, enemy_planet, getMinimumAttackStrength(ships, enemy_ships)))
+						return self.goal
+
+			# Grief cheap enemy
+			cheap_enemy = None
+			for enemy in enemy_planets:
+				if cheap_enemy is None or sum(enemy.ships) < sum(cheap_enemy.ships):
+					cheap_enemy = enemy
+
+			#cheap_enemys.sort(key=lambda x: x.getNearestPlanetDist(my_planets), reverse=False)
+
+			if cheap_enemy is not None:
+				g = Goal('grief enemy')
+				for p in my_planets:
+					if sum(p.ships) >= 1:
+						g.add(MoveCommand(p, cheap_enemy, [1, 1, 1]))
+				if g.len() > 0:
+					self.goal = g
+					return g
+
+			# Default goal
+			self.goal = Goal('default')
+			self.goal.add(NopCommand())
+		return self.goal
+
+
 	def getDecision(self):
 		decisions = [Decision(-9999.9, None, 'Default decision')]
 
 		my_planets = self.getPlanetsByOwner(self.player_me.id)
 		enemy_planets = self.getPlanetsByOwner(self.player_enemy.id)
+		neutral_planets = self.getPlanetsByOwner(0)
 
+		# OLD CODE
 		# Griefing decisions
 		for origin in my_planets:
 			if sum(origin.ships[::]) < 3:
@@ -121,7 +260,7 @@ class State:
 
 				#modifier = (target_planet.planetValue() / origin_planet.planetValue()) / 100.0
 				#modifier = sum(origin_planet.ships[::]) / (100.0 * (self.round+0.0001))
-				modifier = (min_dist / 10.0) * sum(origin_planet.ships[::])
+				modifier = (min_dist / 10.0)
 
 				c = "send %s %s %s %s %s" % (origin_planet.id, target_planet.id, origin_planet.ships[0]/2, origin_planet.ships[1]/2, origin_planet.ships[2]/2)
 				d = Decision((self.PRIORITY_RALLY + modifier), origin_planet, "Rally ships", c)
@@ -160,7 +299,7 @@ class State:
 					for helper in my_planets:
 						if planet.distTo(helper) < rounds_left and planet != helper:
 							# is near enough to help
-							helper_status = helper.getStatusIn(int(rounds_left*0.5))
+							helper_status = helper.getStatusIn(int(rounds_left*1.5))
 							if helper_status['owner'] == self.player_me.id:
 								# can help
 								modifier = sum(fleet.ships[::]) / 10.0
@@ -193,28 +332,6 @@ class State:
 
 		decisions.sort(key=lambda x: x.score, reverse=True)
 
-		if decisions[0].command == 'FOFOFOFOFOFOFOFOFOFOFOFOnop':
-			best_origin = None
-			best_target = None
-			best_dist = 9999999999
-			for enemy_planet in self.getPlanetsByOwner(self.player_enemy.id):
-				if sum(enemy_planet.ships[::]) > 3:
-				#if enemy_planet.ships[0] > 1 and enemy_planet.ships[1] > 1 and enemy_planet.ships[2] > 1:
-					for my_planet in my_planets:
-						if sum(my_planet.ships[::]) > 3:
-						#if my_planet.ships[0] > 1 and my_planet.ships[1] > 1 and my_planet.ships[2] > 1:
-							dist = my_planet.distTo(enemy_planet)
-
-							if best_origin is None or dist < best_dist:
-								best_origin = my_planet
-								best_target = enemy_planet
-								best_dist = dist
-
-			if best_origin != None:
-				c = "send %s %s 1 1 1" % (best_origin.id, best_target.id)
-				a = Decision(1337, best_origin, "Griefing planet", c)
-				return a
-
 		# Check if a planet needs to def
 		def_planet_ids = []
 		for my_planet in my_planets:
@@ -231,9 +348,8 @@ class State:
 
 		decision = decisions[0]
 		for i in range(0, len(decisions)):
-			if decisions[i].origin in def_planet_ids:
-				print "skipping"
-				time.sleep(0.5)
+			if decisions[i].origin is not None and decisions[i].origin.id in def_planet_ids:
+				print "!!!!!!!!!!!!!!!!!!!!!!!!"
 				decision = decisions[i]
 				break
 

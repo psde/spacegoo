@@ -18,14 +18,33 @@ class Planet:
 		ydiff = self.y - other.y
 		return int(math.ceil(math.sqrt(xdiff*xdiff + ydiff*ydiff)))
 
+	def getNearestPlanet(self, planets):
+		nearest = None
+		for planet in planets:
+			if nearest == None or self.distTo(nearest) > self.distTo(planet):
+				nearest = planet
+		return nearest
+
+
+	def getNearestPlanetDist(self, planets):
+		nearest = self.getNearestPlanet(planets)
+		if nearest is None:
+			return 99999999
+		return nearest.distTo(self)
+
+	def istSafeToLeave(self, ships):
+		remaining = map(lambda s, l: s-l, self.ships, ships)
+		status = self.getStatusIn(500 - self.state.round + 1, remaining)
+		return status['owner'] == self.owner
+
 	def getStatusIn(self, eta, starting_ships = None):
 		ships_prediction = self.ships[::]
 		if starting_ships is not None:
 			ships_prediction = starting_ships[::]
-		owner_prediction = self.owner
+		owner_prediction = int(self.owner)
 
 		fleets = self.state.getFleetsTo(self.id)
-		for r in range(1, eta + 1):
+		for r in range(0, eta + 1):
 			# Add production if not neutral
 			if owner_prediction != 0:
 				ships_prediction = map(lambda s,p: s+p, ships_prediction, self.production)
@@ -47,7 +66,7 @@ class Planet:
 							# Attack successful
 							ships_prediction = battle_result[0]
 							owner_prediction = fleet.owner
-							
+
 		return {'owner': owner_prediction, 'ships': ships_prediction}
 
 	def attackResultsIn(self, ships, rounds):
@@ -73,6 +92,8 @@ class Planet:
 		if status['owner'] == self.owner:
 			if self.state.round <= 255:
 				return None
+			elif self.owner == 0:
+				pass
 			else:
 				modifier -= 20.0
 			#pass
@@ -86,18 +107,18 @@ class Planet:
 			if other_score is not None:
 				modifier -= (other_score[0] / 2.5)
 
-		other_ships = status['ships'][::]
+		other_ships = status['ships']
 		battle_result = battle(self.ships, other_ships)
 
 		if sum(battle_result[0][::]) == 0:
-			modifier -= sum(battle_result[1][::]) / (self.state.round + 0.0001)
+			modifier -= sum(battle_result[1]) / (self.state.round + 0.0001)
 			return None
 			#pass
 
 		#modifier = 0
-		modifier += float(sum(battle_result[0][::])) / (float(sum(self.ships[::]))+0.0001)
+		modifier += float(sum(battle_result[0])) / (float(sum(self.ships))+0.0001)
 		#modifier += other.planetValue() * 2.5
-		modifier -= eta / 2.0
+		modifier -= eta
 		#modifier *= float(sum(self.ships[::])) / 10.0
 		#modifier += other.planetValue() / 100.0
 
@@ -107,11 +128,11 @@ class Planet:
 		#minimum = self.ships
 
 		#own fleets count against mod
-		for fleet in self.state.getFleetsByTo(other.id, self.state.player_me.id):
-			modifier -= sum(fleet.ships[::]) / 25.0
+		#for fleet in self.state.getFleetsByTo(other.id, self.state.player_me.id):
+		#	modifier -= sum(fleet.ships[::]) / 25.0
 
 		for fleet in self.state.getFleetsByTo(self.id, self.state.player_enemy.id):
-			modifier -= sum(fleet.ships[::]) / 8.0
+			modifier -= sum(fleet.ships) / 8.0
 
 		return [modifier, minimum]
 
