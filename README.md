@@ -1,7 +1,7 @@
 spacegoo
 ========
 
-Rocket Scissor Spacegoo (https://entropia.de/GPN13:Rocket_Scissor_Spacegoo) bot, hacked in a few days on the GPN13.
+Rocket Scissor Spacegoo (https://entropia.de/GPN13:Rocket_Scissor_Spacegoo) bot, hacked in a few days on the GPN13 under the heavy influence of caffeine and tschunk.
 
-Code is rather ugly, but I did have some (mixed) success with it. Best placement was #3 on saturday night. :)
+Code is rather ugly , but I did have some (mixed) success with it. Best placement was #3 on saturday night. :)
 
